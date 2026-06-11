@@ -1,6 +1,7 @@
-// lib/screens/canvas_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'dart:async';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/pixel_grid_painter.dart';
@@ -22,31 +23,108 @@ class _CanvasScreenState extends State<CanvasScreen> {
   bool _publishing = false;
   final _titleCtrl = TextEditingController();
 
+  final List<Map<String, String>> _history = [];
+  final List<Map<String, String>> _redoStack = [];
+
+  StreamSubscription? _shakeSub;
+  DateTime? _lastShake;
+
   @override
-  void dispose() {
-    _titleCtrl.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _listenShake();
   }
 
-  String _colorToHex(Color c) =>
-      '#${c.red.toRadixString(16).padLeft(2, '0')}${c.green.toRadixString(16).padLeft(2, '0')}${c.blue.toRadixString(16).padLeft(2, '0')}';
+  void _listenShake() {
+    _shakeSub = accelerometerEventStream().listen((event) {
+      final magnitude = event.x.abs() + event.y.abs() + event.z.abs();
+      if (magnitude > 100) {
+        final now = DateTime.now();
+        if (_lastShake == null ||
+            now.difference(_lastShake!) > const Duration(seconds: 2)) {
+          _lastShake = now;
+          _confirmClear();
+        }
+      }
+    });
+  }
+
+  void _confirmClear() {
+    if (_pixels.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Apagar tudo?',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text('Chacoalhar apagou o canvas. Confirma?',
+            style: TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _clearCanvas();
+            },
+            child: const Text('Apagar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _saveHistory() {
+    _history.add(Map.from(_pixels));
+    if (_history.length > 50) _history.removeAt(0);
+  }
 
   void _paintPixel(Offset localPos, Size canvasSize) {
     final cellSize = canvasSize.width / _gridSize;
     final x = (localPos.dx / cellSize).floor();
     final y = (localPos.dy / cellSize).floor();
     if (x < 0 || x >= _gridSize || y < 0 || y >= _gridSize) return;
-    setState(() {
-      _pixels['$x,$y'] = _colorToHex(_selectedColor);
-    });
+    final key = '$x,$y';
+    final hex = _colorToHex(_selectedColor);
+    if (_pixels[key] == hex) return;
+    _saveHistory();
+    _redoStack.clear();
+    setState(() => _pixels[key] = hex);
+  }
+
+  void _undo() {
+    if (_history.isEmpty) return;
+    _redoStack.add(Map.from(_pixels));
+    setState(() => _pixels = _history.removeLast());
+  }
+
+  void _redo() {
+    if (_redoStack.isEmpty) return;
+    _history.add(Map.from(_pixels));
+    setState(() => _pixels = _redoStack.removeLast());
+  }
+
+  void _clearCanvas() {
+    _saveHistory();
+    _redoStack.clear();
+    setState(() => _pixels = {});
   }
 
   void _changeGridSize(int size) {
+    _history.clear();
+    _redoStack.clear();
     setState(() {
       _gridSize = size;
       _pixels = {};
     });
   }
+
+  String _colorToHex(Color c) =>
+      '#${c.red.toRadixString(16).padLeft(2, '0')}${c.green.toRadixString(16).padLeft(2, '0')}${c.blue.toRadixString(16).padLeft(2, '0')}';
 
   Future<void> _openColorPicker() async {
     Color temp = _selectedColor;
@@ -131,6 +209,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
         pixels: _pixels,
       );
       if (!mounted) return;
+      _history.clear();
+      _redoStack.clear();
       setState(() => _pixels = {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -150,6 +230,13 @@ class _CanvasScreenState extends State<CanvasScreen> {
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _shakeSub?.cancel();
+    _titleCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -182,8 +269,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
               child: Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(10),
@@ -208,6 +295,21 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     ),
                   ),
                   const Spacer(),
+                  IconButton(
+                    onPressed: _history.isEmpty ? null : _undo,
+                    icon: const Icon(Icons.undo),
+                    color: AppColors.textPrimary,
+                    disabledColor: AppColors.border,
+                    tooltip: 'Desfazer',
+                  ),
+                  IconButton(
+                    onPressed: _redoStack.isEmpty ? null : _redo,
+                    icon: const Icon(Icons.redo),
+                    color: AppColors.textPrimary,
+                    disabledColor: AppColors.border,
+                    tooltip: 'Refazer',
+                  ),
+                  const SizedBox(width: 4),
                   GestureDetector(
                     onTap: _openColorPicker,
                     child: Container(
@@ -251,8 +353,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         height: side,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: AppColors.border, width: 1),
+                          border: Border.all(
+                              color: AppColors.border, width: 1),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: CustomPaint(
