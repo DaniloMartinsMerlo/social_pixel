@@ -83,7 +83,7 @@ class ApiService {
       headers: _headers,
     );
     _checkStatus(res);
-    final list = jsonDecode(res.body)['data'] as List;
+    final list = jsonDecode(res.body)['data'] as List? ?? [];
     return list.map((e) => Artwork.fromJson(e)).toList();
   }
 
@@ -98,7 +98,7 @@ class ApiService {
       headers: _headers,
     );
     _checkStatus(res);
-    final list = jsonDecode(res.body)['data'] as List;
+    final list = jsonDecode(res.body)['data'] as List? ?? [];
     return list.map((e) => Artwork.fromJson(e)).toList();
   }
 
