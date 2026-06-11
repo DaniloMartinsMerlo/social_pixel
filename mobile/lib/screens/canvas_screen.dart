@@ -1,3 +1,4 @@
+// lib/screens/canvas_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../services/api_service.dart';
@@ -89,8 +90,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
       );
       return;
     }
-
-    Ask for title
     _titleCtrl.clear();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -161,7 +160,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -179,12 +177,10 @@ class _CanvasScreenState extends State<CanvasScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Controls row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  Grid size dropdown
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -212,7 +208,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Color picker button
                   GestureDetector(
                     onTap: _openColorPicker,
                     child: Container(
@@ -238,7 +233,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Canvas
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -279,7 +273,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Publish button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: ElevatedButton(
