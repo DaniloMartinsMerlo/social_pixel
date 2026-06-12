@@ -179,6 +179,17 @@ class ApiService {
       throw ApiException(message, res.statusCode);
     }
   }
+
+  Future<String> getColorName(String hex) async {
+    final clean = hex.replaceFirst('#', '');
+    final res = await http.get(
+      Uri.parse('https://www.thecolorapi.com/id?hex=$clean'),
+    );
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body)['name']['value'] as String;
+    }
+    return hex;
+  }
 }
 
 class ApiException implements Exception {

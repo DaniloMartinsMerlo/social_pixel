@@ -20,6 +20,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   int _gridSize = 16;
   Color _selectedColor = const Color(0xFF7C3AED);
   Map<String, String> _pixels = {};
+  String _colorName = '';
   bool _publishing = false;
   final _titleCtrl = TextEditingController();
 
@@ -38,7 +39,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   void _listenShake() {
     _shakeSub = accelerometerEventStream().listen((event) {
       final magnitude = event.x.abs() + event.y.abs() + event.z.abs();
-      if (magnitude > 100) {
+      if (magnitude > 70) {
         final now = DateTime.now();
         if (_lastShake == null ||
             now.difference(_lastShake!) > const Duration(seconds: 2)) {
@@ -146,9 +147,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               setState(() => _selectedColor = temp);
               Navigator.of(context).pop();
+              try {
+                final api = ApiService(userId: widget.userId);
+                final name = await api.getColorName(_colorToHex(temp));
+                if (mounted) setState(() => _colorName = name);
+              } catch (_) {}
             },
             child: const Text('OK',
                 style: TextStyle(color: AppColors.primaryLight)),
@@ -247,11 +253,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'Nova pixel art',
                     style: TextStyle(
                       color: AppColors.textPrimary,
@@ -294,6 +300,18 @@ class _CanvasScreenState extends State<CanvasScreen> {
                       ),
                     ),
                   ),
+                  const Spacer(),
+                  if (_colorName.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        _colorName,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
                   const Spacer(),
                   IconButton(
                     onPressed: _history.isEmpty ? null : _undo,
