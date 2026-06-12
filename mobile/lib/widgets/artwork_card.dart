@@ -3,7 +3,6 @@ import '../models/artwork.dart';
 import '../theme.dart';
 import 'pixel_grid_painter.dart';
 import 'user_avatar.dart';
-import 'package:share_plus/share_plus.dart';
 
 class ArtworkCard extends StatefulWidget {
   final Artwork artwork;
@@ -98,18 +97,6 @@ class _ArtworkCardState extends State<ArtworkCard> {
                         ),
                       ),
                     ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Share.share(
-                      '🎨 Confira essa pixel art de ${artwork.author?.username ?? 'alguém'}: "${artwork.title}"\n\nFeita no PixelShare!',
-                    );
-                  },
-                  child: const Icon(
-                    Icons.share_outlined,
-                    color: AppColors.textSecondary,
-                    size: 18,
                   ),
                 ),
               ],
