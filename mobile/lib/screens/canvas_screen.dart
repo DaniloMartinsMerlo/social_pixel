@@ -5,6 +5,10 @@ import 'dart:async';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/pixel_grid_painter.dart';
+import 'dart:ui' as ui;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class CanvasScreen extends StatefulWidget {
   final String userId;
@@ -164,6 +168,55 @@ class _CanvasScreenState extends State<CanvasScreen> {
     );
   }
 
+  Future<void> _shareAsPng() async {
+    try {
+      const exportSize = 512.0;
+      final cellSize = exportSize / _gridSize;
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+
+      final bgPaint = Paint()..color = const Color(0xFF0E1420);
+      canvas.drawRect(
+          Rect.fromLTWH(0, 0, exportSize, exportSize), bgPaint);
+
+      for (final entry in _pixels.entries) {
+        final parts = entry.key.split(',');
+        final x = int.parse(parts[0]);
+        final y = int.parse(parts[1]);
+        final hex = entry.value.replaceFirst('#', '');
+        final color = Color(int.parse('FF$hex', radix: 16));
+        final paint = Paint()..color = color;
+        canvas.drawRect(
+          Rect.fromLTWH(x * cellSize, y * cellSize, cellSize, cellSize),
+          paint,
+        );
+      }
+
+      final picture = recorder.endRecording();
+      final image =
+      await picture.toImage(exportSize.toInt(), exportSize.toInt());
+      final byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = byteData!.buffer.asUint8List();
+
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/pixelart.png');
+      await file.writeAsBytes(bytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Minha pixel art feita no PixelShare! 🎨',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao compartilhar: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _publish() async {
     if (_pixels.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -290,9 +343,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
                             color: AppColors.textPrimary, fontSize: 14),
                         items: _sizes
                             .map((s) => DropdownMenuItem(
-                                  value: s,
-                                  child: Text('${s}x$s'),
-                                ))
+                          value: s,
+                          child: Text('${s}x$s'),
+                        ))
                             .toList(),
                         onChanged: (v) {
                           if (v != null) _changeGridSize(v);
@@ -308,11 +361,10 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         _colorName,
                         style: const TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: 15,
+                          fontSize: 11,
                         ),
                       ),
                     ),
-                  const Spacer(),
                   IconButton(
                     onPressed: _history.isEmpty ? null : _undo,
                     icon: const Icon(Icons.undo),
@@ -326,6 +378,13 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     color: AppColors.textPrimary,
                     disabledColor: AppColors.border,
                     tooltip: 'Refazer',
+                  ),
+                  IconButton(
+                    onPressed: _pixels.isEmpty ? null : _shareAsPng,
+                    icon: const Icon(Icons.share_outlined),
+                    color: AppColors.textPrimary,
+                    disabledColor: AppColors.border,
+                    tooltip: 'Compartilhar',
                   ),
                   const SizedBox(width: 4),
                   GestureDetector(
@@ -371,8 +430,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         height: side,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: AppColors.border, width: 1),
+                          border:
+                          Border.all(color: AppColors.border, width: 1),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: CustomPaint(
@@ -399,13 +458,13 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 onPressed: _publishing ? null : _publish,
                 child: _publishing
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
                     : const Text('Publicar arte'),
               ),
             ),
